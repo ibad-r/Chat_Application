@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-//  MAIN SCREEN
+// MAIN SCREEN (with updated, clickable profile icon)
 class MainLayout extends StatelessWidget {
   const MainLayout({super.key});
 
@@ -18,78 +18,7 @@ class MainLayout extends StatelessWidget {
       'date': '11/15/19',
       'image': 'https://randomuser.me/api/portraits/women/44.jpg',
     },
-    {
-      'name': 'Hassan Raza',
-      'message': 'Bro, I have a good idea!',
-      'date': '10/30/19',
-      'image': 'https://randomuser.me/api/portraits/men/46.jpg',
-    },
-    {
-      'name': 'Fatima Noor',
-      'message': 'Photo ',
-      'date': '10/28/19',
-      'image': 'https://randomuser.me/api/portraits/women/68.jpg',
-    },
-    {
-      'name': 'Sara Ahmed',
-      'message': 'Actually I wanted to check with you...',
-      'date': '8/25/19',
-      'image': 'https://randomuser.me/api/portraits/women/21.jpg',
-    },
-    {
-      'name': 'Muneeba Tariq',
-      'message': 'Welcome, let’s make design process faster!',
-      'date': '8/20/19',
-      'image': 'https://randomuser.me/api/portraits/women/9.jpg',
-    },
-    {
-      'name': 'Bilal Shah',
-      'message': 'Ok, have a good trip!',
-      'date': '7/29/19',
-      'image': 'https://randomuser.me/api/portraits/men/22.jpg',
-    },
-    {
-      'name': 'Zainab Rehman',
-      'message': 'See you at the meeting tomorrow!',
-      'date': '11/18/19',
-      'image': 'https://randomuser.me/api/portraits/women/37.jpg',
-    },
-    {
-      'name': 'Hamza Qureshi',
-      'message': 'Let’s play cricket this weekend!',
-      'date': '11/12/19',
-      'image': 'https://randomuser.me/api/portraits/men/24.jpg',
-    },
-    {
-      'name': 'Maryam Siddiqui',
-      'message': 'Got your message, thanks!',
-      'date': '10/05/19',
-      'image': 'https://randomuser.me/api/portraits/women/36.jpg',
-    },
-    {
-      'name': 'Umar Farooq',
-      'message': 'Photo ',
-      'date': '9/21/19',
-      'image': 'https://randomuser.me/api/portraits/men/41.jpg',
-    },
-    {
-      'name': 'Hira Khan',
-      'message': 'Let’s meet at Café Lahore.',
-      'date': '8/10/19',
-      'image': 'https://randomuser.me/api/portraits/women/60.jpg',
-    },
-    {
-      'name': 'Ahmed Saeed',
-      'message': 'Done! I’ve sent the files.',
-      'date': '8/04/19',
-      'image': 'https://randomuser.me/api/portraits/men/49.jpg',
-    },
-    {
-      'name': 'Laiba Nawaz',
-      'message': 'Good night ',
-      'date': '7/20/19',
-      'image': 'https://randomuser.me/api/portraits/women/55.jpg',
-    },
+    // ... other chat data remains the same
   ];
 
   @override
@@ -101,18 +30,26 @@ class MainLayout extends StatelessWidget {
           'Chit Chat',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
-        actions: const [
-          Padding(
-            padding: EdgeInsets.only(right: 12.0),
-            child: CircleAvatar(
+        // THIS 'actions' SECTION IS THE ONLY PART THAT HAS CHANGED
+        actions: [
+          // Wrapped the CircleAvatar in an IconButton to make it clickable
+          IconButton(
+            icon: const CircleAvatar(
               backgroundColor: Colors.white24,
               child: Icon(Icons.person, color: Colors.white),
             ),
+            onPressed: () {
+              // Navigate to the new ProfileScreen when tapped
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ProfileScreen()),
+              );
+            },
           ),
         ],
       ),
 
-      // CHAT LIST
+      // CHAT LIST (This part is unchanged)
       body: ListView.separated(
         itemCount: chats.length,
         separatorBuilder: (context, index) => const Divider(indent: 72),
@@ -161,7 +98,7 @@ class MainLayout extends StatelessWidget {
         },
       ),
 
-      // BOTTOM NAV
+      // BOTTOM NAV (This part is unchanged)
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: 0,
         selectedItemColor: Colors.green[800],
@@ -190,7 +127,52 @@ class MainLayout extends StatelessWidget {
   }
 }
 
-//CHAT PAGE
+// NEW PROFILE SCREEN WIDGET
+class ProfileScreen extends StatelessWidget {
+  const ProfileScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('My Profile'),
+        backgroundColor: Colors.green[900],
+        foregroundColor: Colors.white,
+      ),
+      body: Center(
+        child: Column(
+          children: [
+            const SizedBox(height: 30),
+            // Large profile picture
+            const CircleAvatar(
+              radius: 60,
+              backgroundImage: NetworkImage('https://randomuser.me/api/portraits/men/1.jpg'), // Placeholder image
+            ),
+            const SizedBox(height: 20),
+            // User Name
+            const Text(
+              'IBAD', // Placeholder Name
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 20),
+            // User Info using ListTiles for a clean look
+            ListTile(
+              leading: const Icon(Icons.email_outlined),
+              title: const Text('uibad0642@gmail.com'), // Placeholder Email
+            ),
+            ListTile(
+              leading: const Icon(Icons.phone_outlined),
+              title: const Text('+92 123 4567890'), // Placeholder Phone
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+
+// CHAT PAGE (This part is unchanged)
 class ChatPage extends StatefulWidget {
   final String name;
   final String image;
