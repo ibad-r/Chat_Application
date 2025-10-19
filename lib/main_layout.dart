@@ -1,24 +1,94 @@
 import 'package:flutter/material.dart';
 
-// MAIN SCREEN (with updated, clickable profile icon)
+// MAIN SCREEN (Images Removed)
 class MainLayout extends StatelessWidget {
   const MainLayout({super.key});
 
-  // Dummy chat list (you can add as many as you want)
   final List<Map<String, String>> chats = const [
     {
-      'name': 'Ali Khan',
+      'name': 'Ali Ahmed',
       'message': 'What kind of strategy is better?',
       'date': '11/16/19',
-      'image': 'https://randomuser.me/api/portraits/men/31.jpg',
+      'image': '',
     },
     {
       'name': 'Ayesha Malik',
       'message': 'Voice Message • 0:14',
       'date': '11/15/19',
-      'image': 'https://randomuser.me/api/portraits/women/44.jpg',
+      'image': '',
     },
-    // ... other chat data remains the same
+    {
+      'name': 'Hassan Raza',
+      'message': 'Bro, I have a good idea!',
+      'date': '10/30/19',
+      'image': '',
+    },
+    {
+      'name': 'Fatima Noor',
+      'message': 'Photo ',
+      'date': '10/28/19',
+      'image': '',
+    },
+    {
+      'name': 'Sara Ahmed',
+      'message': 'Actually I wanted to check with you...',
+      'date': '8/25/19',
+      'image': '',
+    },
+    {
+      'name': 'Muneeba Tariq',
+      'message': 'Welcome, let’s make design process faster!',
+      'date': '8/20/19',
+      'image': '',
+    },
+    {
+      'name': 'Bilal Shah',
+      'message': 'Ok, have a good trip!',
+      'date': '7/29/19',
+      'image': '',
+    },
+    {
+      'name': 'Zainab Rehman',
+      'message': 'See you at the meeting tomorrow!',
+      'date': '11/18/19',
+      'image': '',
+    },
+    {
+      'name': 'Hamza Qureshi',
+      'message': 'Let’s play cricket this weekend!',
+      'date': '11/12/19',
+      'image': '',
+    },
+    {
+      'name': 'Maryam Siddiqui',
+      'message': 'Got your message, thanks!',
+      'date': '10/05/19',
+      'image': '',
+    },
+    {
+      'name': 'Umar Farooq',
+      'message': 'Photo ',
+      'date': '9/21/19',
+      'image': '',
+    },
+    {
+      'name': 'Hira Khan',
+      'message': 'Let’s meet at Café Lahore.',
+      'date': '8/10/19',
+      'image': '',
+    },
+    {
+      'name': 'Ahmed Saeed',
+      'message': 'Done! I’ve sent the files.',
+      'date': '8/04/19',
+      'image': '',
+    },
+    {
+      'name': 'Laiba Nawaz',
+      'message': 'Good night ',
+      'date': '7/20/19',
+      'image': '',
+    },
   ];
 
   @override
@@ -30,16 +100,13 @@ class MainLayout extends StatelessWidget {
           'Chit Chat',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
-        // THIS 'actions' SECTION IS THE ONLY PART THAT HAS CHANGED
         actions: [
-          // Wrapped the CircleAvatar in an IconButton to make it clickable
           IconButton(
             icon: const CircleAvatar(
               backgroundColor: Colors.white24,
               child: Icon(Icons.person, color: Colors.white),
             ),
             onPressed: () {
-              // Navigate to the new ProfileScreen when tapped
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const ProfileScreen()),
@@ -48,17 +115,16 @@ class MainLayout extends StatelessWidget {
           ),
         ],
       ),
-
-      // CHAT LIST (This part is unchanged)
       body: ListView.separated(
         itemCount: chats.length,
         separatorBuilder: (context, index) => const Divider(indent: 72),
         itemBuilder: (context, index) {
           final chat = chats[index];
           return ListTile(
-            leading: CircleAvatar(
+            // **IMAGE REMOVED HERE**
+            leading: const CircleAvatar(
               radius: 25,
-              backgroundImage: NetworkImage(chat['image']!),
+              child: Icon(Icons.person),
             ),
             title: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -97,8 +163,6 @@ class MainLayout extends StatelessWidget {
           );
         },
       ),
-
-      // BOTTOM NAV (This part is unchanged)
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: 0,
         selectedItemColor: Colors.green[800],
@@ -127,7 +191,7 @@ class MainLayout extends StatelessWidget {
   }
 }
 
-// NEW PROFILE SCREEN WIDGET
+// PROFILE SCREEN WIDGET (Image Removed)
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
@@ -143,26 +207,24 @@ class ProfileScreen extends StatelessWidget {
         child: Column(
           children: [
             const SizedBox(height: 30),
-            // Large profile picture
+            // **IMAGE REMOVED HERE**
             const CircleAvatar(
               radius: 60,
-              backgroundImage: NetworkImage('https://randomuser.me/api/portraits/men/1.jpg'), // Placeholder image
+              child: Icon(Icons.person, size: 60),
             ),
             const SizedBox(height: 20),
-            // User Name
             const Text(
-              'IBAD', // Placeholder Name
+              'IBAD',
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 20),
-            // User Info using ListTiles for a clean look
-            ListTile(
-              leading: const Icon(Icons.email_outlined),
-              title: const Text('uibad0642@gmail.com'), // Placeholder Email
+            const ListTile(
+              leading: Icon(Icons.email_outlined),
+              title: Text('uibad0642@gmail.com'),
             ),
-            ListTile(
-              leading: const Icon(Icons.phone_outlined),
-              title: const Text('+92 123 4567890'), // Placeholder Phone
+            const ListTile(
+              leading: Icon(Icons.phone_outlined),
+              title: Text('+92 123 4567890'),
             ),
           ],
         ),
@@ -171,8 +233,7 @@ class ProfileScreen extends StatelessWidget {
   }
 }
 
-
-// CHAT PAGE (This part is unchanged)
+// CHAT PAGE (Image Removed)
 class ChatPage extends StatefulWidget {
   final String name;
   final String image;
@@ -204,13 +265,14 @@ class _ChatPageState extends State<ChatPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // CHAT HEADER
       appBar: AppBar(
         backgroundColor: Colors.green[900],
+        foregroundColor: Colors.white,
         title: Row(
           children: [
-            CircleAvatar(
-              backgroundImage: NetworkImage(widget.image),
+            // **IMAGE REMOVED HERE**
+            const CircleAvatar(
+              child: Icon(Icons.person),
             ),
             const SizedBox(width: 10),
             Text(widget.name),
@@ -225,11 +287,8 @@ class _ChatPageState extends State<ChatPage> {
           SizedBox(width: 8),
         ],
       ),
-
-      // CHAT MESSAGES
       body: Column(
         children: [
-          // Scrollable messages area
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.all(10),
@@ -248,7 +307,7 @@ class _ChatPageState extends State<ChatPage> {
                     decoration: BoxDecoration(
                       color: isMe
                           ? Colors.green[100]
-                          : Colors.grey[200], // light color bubbles
+                          : Colors.grey[200],
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Text(message),
@@ -257,8 +316,6 @@ class _ChatPageState extends State<ChatPage> {
               },
             ),
           ),
-
-          //  TEXT INPUT AREA
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
             color: Colors.grey[100],

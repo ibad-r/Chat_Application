@@ -1,6 +1,6 @@
 // phone_login_screen.dart
 import 'package:flutter/material.dart';
-import 'otp_verification_screen.dart'; // Import the next screen
+import 'otp_verification_screen.dart';
 
 class PhoneLoginScreen extends StatelessWidget {
   const PhoneLoginScreen({super.key});

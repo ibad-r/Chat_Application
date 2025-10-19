@@ -1,6 +1,5 @@
-// main.dart
 import 'package:flutter/material.dart';
-import 'phone_login_screen.dart'; // Import your new screen
+import 'phone_login_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -14,15 +13,14 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Chat App',
       theme: ThemeData(
-        // Define your color scheme
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF075E54), // Dark Blue/Green (Primary)
-          primary: const Color(0xFF075E54),   // Primary color
-          secondary: const Color(0xFF25D366), // Teal/Green (Accent)
+          seedColor: const Color(0xFF075E54),
+          primary: const Color(0xFF075E54),
+          secondary: const Color(0xFF25D366),
         ),
         useMaterial3: true,
       ),
-      // Start the app on the login screen
+
       home: const PhoneLoginScreen(),
     );
   }

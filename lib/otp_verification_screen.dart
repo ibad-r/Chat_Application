@@ -1,6 +1,5 @@
-// otp_verification_screen.dart
 import 'package:flutter/material.dart';
-import 'main_layout.dart'; // We will navigate to this screen after verification
+import 'main_layout.dart';
 
 class OtpVerificationScreen extends StatelessWidget {
   const OtpVerificationScreen({super.key});
@@ -31,15 +30,14 @@ class OtpVerificationScreen extends StatelessWidget {
                 border: OutlineInputBorder(),
               ),
               keyboardType: TextInputType.number,
-              maxLength: 6, // Ensures user can only enter 6 digits
+              maxLength: 6,
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 24, letterSpacing: 10), // Makes it look like an OTP field
             ),
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () {
-                // Navigate to the main app layout (home screen)
-                // We use pushReplacement so the user can't go back to the OTP screen
+
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(builder: (context) => const MainLayout()),
