@@ -1,54 +1,91 @@
 import 'package:flutter/material.dart';
-import 'main_layout.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'profile_setup_screen.dart';
 
-class OtpVerificationScreen extends StatelessWidget {
-  const OtpVerificationScreen({super.key});
+class OtpVerificationScreen extends StatefulWidget {
+  final String verificationId;
+  final String phone;
+
+  const OtpVerificationScreen({
+    super.key,
+    required this.verificationId,
+    required this.phone,
+  });
+
+  @override
+  State<OtpVerificationScreen> createState() => _OtpVerificationScreenState();
+}
+
+class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
+  final TextEditingController _otpController = TextEditingController();
+  bool _loading = false;
+
+  Future<void> _verifyOtp() async {
+    final otp = _otpController.text.trim();
+    if (otp.length != 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Enter 6-digit OTP")),
+      );
+      return;
+    }
+
+    setState(() => _loading = true);
+
+    try {
+      final credential = PhoneAuthProvider.credential(
+        verificationId: widget.verificationId,
+        smsCode: otp,
+      );
+
+      await FirebaseAuth.instance.signInWithCredential(credential);
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ProfileSetupScreen(
+            phone: widget.phone,
+          ),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Wrong OTP: $e")),
+      );
+    }
+
+    setState(() => _loading = false);
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Verify Your Number'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        foregroundColor: Colors.white,
-      ),
+      appBar: AppBar(title: const Text("Verify OTP")),
       body: Padding(
-        padding: const EdgeInsets.all(20.0),
+        padding: const EdgeInsets.all(20),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
-              'Enter the 6-digit code sent to your number.',
+            Text(
+              "Enter the OTP sent to +${widget.phone}",
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 16),
             ),
-            const SizedBox(height: 30),
-            const TextField(
-              decoration: InputDecoration(
-                labelText: 'OTP Code',
-                border: OutlineInputBorder(),
-              ),
-              keyboardType: TextInputType.number,
+            const SizedBox(height: 20),
+            TextField(
+              controller: _otpController,
               maxLength: 6,
+              keyboardType: TextInputType.number,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 24, letterSpacing: 10), // Makes it look like an OTP field
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                label: Text("6 Digit OTP"),
+              ),
             ),
             const SizedBox(height: 20),
             ElevatedButton(
-              onPressed: () {
-
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => const MainLayout()),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.secondary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-              ),
-              child: const Text('Verify & Continue'),
+              onPressed: _loading ? null : _verifyOtp,
+              child: _loading
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : const Text("Verify"),
             ),
           ],
         ),
