@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'profile_screen.dart';
 
 // MAIN SCREEN (Images Removed)
 class MainLayout extends StatelessWidget {
@@ -191,47 +192,7 @@ class MainLayout extends StatelessWidget {
   }
 }
 
-// PROFILE SCREEN WIDGET (Image Removed)
-class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({super.key});
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Profile'),
-        backgroundColor: Colors.green[900],
-        foregroundColor: Colors.white,
-      ),
-      body: Center(
-        child: Column(
-          children: [
-            const SizedBox(height: 30),
-            // **IMAGE REMOVED HERE**
-            const CircleAvatar(
-              radius: 60,
-              child: Icon(Icons.person, size: 60),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'IBAD',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 20),
-            const ListTile(
-              leading: Icon(Icons.email_outlined),
-              title: Text('uibad0642@gmail.com'),
-            ),
-            const ListTile(
-              leading: Icon(Icons.phone_outlined),
-              title: Text('+92 123 4567890'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 // CHAT PAGE (Image Removed)
 class ChatPage extends StatefulWidget {

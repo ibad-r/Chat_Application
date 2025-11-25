@@ -1,7 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart'; // generated via FlutterFire CLI
 import 'phone_login_screen.dart';
-//Main File
-void main() {
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Firebase
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
   runApp(const MyApp());
 }
 
@@ -20,7 +29,6 @@ class MyApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-
       home: const PhoneLoginScreen(),
     );
   }
