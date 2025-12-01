@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Socket Test</title>
+</head>
+<body>
+    <h1>Socket.IO Test Chat</h1>
+
+    <input id="username" placeholder="Your username" />
+    <input id="msg" placeholder="Type message..." />
+    <button onclick="sendMessage()">Send</button>
+
+    <div id="output"></div>
+
+    <!-- Socket.IO CDN -->
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+
+    <script>
+        const socket = io("http://localhost:3000");
+
+        socket.on("connect", () => {
+            console.log("Connected:", socket.id);
+            document.getElementById("output").innerHTML += `<p>Connected: ${socket.id}</p>`;
+        });
+
+        // Receive structured message
+        socket.on("receive_message", (data) => {
+            // Display "username: message"
+            const sender = data.sender || "Anon";
+            document.getElementById("output").innerHTML += `<p><strong>${sender}:</strong> ${data.text}</p>`;
+        });
+
+        function sendMessage() {
+            const msg = document.getElementById("msg").value;
+            const username = document.getElementById("username").value || "Anon";
+
+            // Emit structured JSON
+            socket.emit("send_message", {
+                text: msg,
+                sender: username,
+                sentAt: new Date().toISOString()
+            });
+
+            // Clear message input
+            document.getElementById("msg").value = '';
+        }
+    </script>
+</body>
+</html>
