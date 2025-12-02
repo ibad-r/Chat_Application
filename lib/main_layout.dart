@@ -115,19 +115,21 @@ class _ChatPageState extends State<ChatPage> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final List<Map<String, String>> messages = [];
-
   late IO.Socket socket;
   late String username;
-  String? currentRoom;
+  late String currentRoom;
+
+
 
   @override
   void initState() {
     super.initState();
     username = widget.name;
+    currentRoom = widget.name; // each chat name = a room
 
-    // Connect socket (if not already connected globally, create here)
+    // Connect to Socket.IO server
     socket = IO.io(
-      'http://localhost:3000', // replace with LAN IP if using physical device
+      'http://localhost:3000',
       IO.OptionBuilder()
           .setTransports(['websocket'])
           .enableAutoConnect()
@@ -139,10 +141,9 @@ class _ChatPageState extends State<ChatPage> {
 
     socket.onConnect((_) {
       print('Connected: ${socket.id}');
-      joinRoom(widget.name); // join initial room
+      socket.emit('join', currentRoom); // join the room
     });
 
-    // Listen to messages
     socket.on('receive_message', (data) {
       setState(() {
         messages.add({
@@ -150,6 +151,7 @@ class _ChatPageState extends State<ChatPage> {
           "text": data['text'] ?? "",
         });
       });
+
       _scrollController.animateTo(
         _scrollController.position.maxScrollExtent + 60,
         duration: const Duration(milliseconds: 300),
@@ -158,6 +160,15 @@ class _ChatPageState extends State<ChatPage> {
     });
 
     socket.onDisconnect((_) => print('Disconnected'));
+  }
+
+
+  void _scrollToBottom() {
+    _scrollController.animateTo(
+      _scrollController.position.maxScrollExtent + 60,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+    );
   }
 
   void joinRoom(String room) {
@@ -171,12 +182,7 @@ class _ChatPageState extends State<ChatPage> {
     messages.clear(); // clear old messages for new chat
   }
 
-  @override
-  void dispose() {
-    socket.emit('leave', currentRoom);
-    socket.dispose();
-    super.dispose();
-  }
+
 
   void sendMessage() {
     final text = _controller.text.trim();
@@ -184,15 +190,40 @@ class _ChatPageState extends State<ChatPage> {
       final message = {
         "sender": username,
         "text": text,
+        "room": currentRoom, // <-- important
         "sentAt": DateTime.now().toIso8601String()
       };
+
       socket.emit('send_message', message);
+
       setState(() {
         messages.add(message);
       });
+
       _controller.clear();
     }
   }
+
+  void switchRoom(String newRoom) {
+    if (currentRoom != newRoom) {
+      socket.emit('leave', currentRoom); // leave old room
+      currentRoom = newRoom;
+      messages.clear(); // clear previous messages
+      socket.emit('join', currentRoom); // join new room
+    }
+  }
+  @override
+  void dispose() {
+    // Leave the current room before closing socket
+    socket.emit('leave', currentRoom); // make sure currentRoom is the room variable
+    socket.dispose();
+    _controller.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -305,4 +336,5 @@ class _ChatPageState extends State<ChatPage> {
       ),
     );
   }
+
 }
