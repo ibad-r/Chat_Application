@@ -1,30 +1,56 @@
 import 'package:flutter/material.dart';
-import 'profile_screen.dart';
-import 'package:socket_io_client/socket_io_client.dart' as IO;
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-// MAIN SCREEN
-class MainLayout extends StatelessWidget {
+import 'profile_screen.dart';
+import 'services/socket_service.dart';
+import 'phone_login_screen.dart';
+import 'main_layout.dart';
+
+/// ============================
+/// MAIN LAYOUT (Home + Chat List)
+/// ============================
+class MainLayout extends StatefulWidget {
   const MainLayout({super.key});
 
-  final List<Map<String, String>> chats = const [
-    {'name': 'Ali Ahmed', 'message': 'What kind of strategy is better?', 'date': '11/16/19', 'image': ''},
-    {'name': 'Ayesha Malik', 'message': 'Voice Message • 0:14', 'date': '11/15/19', 'image': ''},
-    {'name': 'Hassan Raza', 'message': 'Bro, I have a good idea!', 'date': '10/30/19', 'image': ''},
-    {'name': 'Fatima Noor', 'message': 'Photo ', 'date': '10/28/19', 'image': ''},
-    {'name': 'Sara Ahmed', 'message': 'Actually I wanted to check with you...', 'date': '8/25/19', 'image': ''},
-    {'name': 'Muneeba Tariq', 'message': 'Welcome, let’s make design process faster!', 'date': '8/20/19', 'image': ''},
-    {'name': 'Bilal Shah', 'message': 'Ok, have a good trip!', 'date': '7/29/19', 'image': ''},
-    {'name': 'Zainab Rehman', 'message': 'See you at the meeting tomorrow!', 'date': '11/18/19', 'image': ''},
-    {'name': 'Hamza Qureshi', 'message': 'Let’s play cricket this weekend!', 'date': '11/12/19', 'image': ''},
-    {'name': 'Maryam Siddiqui', 'message': 'Got your message, thanks!', 'date': '10/05/19', 'image': ''},
-    {'name': 'Umar Farooq', 'message': 'Photo ', 'date': '9/21/19', 'image': ''},
-    {'name': 'Hira Khan', 'message': 'Let’s meet at Café Lahore.', 'date': '8/10/19', 'image': ''},
-    {'name': 'Ahmed Saeed', 'message': 'Done! I’ve sent the files.', 'date': '8/04/19', 'image': ''},
-    {'name': 'Laiba Nawaz', 'message': 'Good night ', 'date': '7/20/19', 'image': ''},
-  ];
+  @override
+  State<MainLayout> createState() => _MainLayoutState();
+}
+
+class _MainLayoutState extends State<MainLayout> {
+  late String currentUserUid;
+  late SocketService socketService;
+
+  @override
+  void initState() {
+    super.initState();
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      currentUserUid = user.uid;
+      socketService = SocketService();
+      socketService.connect();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      Future.microtask(() {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const PhoneLoginScreen()),
+        );
+      });
+      return const SizedBox.shrink();
+    }
+
+    // Fetch all users except current user
+    final usersStream = FirebaseFirestore.instance
+        .collection('users')
+        .where('uid', isNotEqualTo: currentUserUid)
+        .snapshots();
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.green[900],
@@ -41,45 +67,53 @@ class MainLayout extends StatelessWidget {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const ProfileScreen()),
+                MaterialPageRoute(builder: (_) => const ProfileScreen()),
               );
             },
           ),
         ],
       ),
-      body: ListView.separated(
-        itemCount: chats.length,
-        separatorBuilder: (context, index) => const Divider(indent: 72),
-        itemBuilder: (context, index) {
-          final chat = chats[index];
-          return ListTile(
-            leading: const CircleAvatar(radius: 25, child: Icon(Icons.person)),
-            title: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    chat['name']!,
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                    overflow: TextOverflow.ellipsis,
-                  ),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: usersStream,
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+          final users = snapshot.data!.docs;
+          if (users.isEmpty) return const Center(child: Text("No users found"));
+
+          return ListView.separated(
+            itemCount: users.length,
+            separatorBuilder: (_, __) => const Divider(indent: 72),
+            itemBuilder: (context, index) {
+              final u = users[index];
+              return ListTile(
+                leading: const CircleAvatar(radius: 25, child: Icon(Icons.person)),
+                title: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        u['name'] ?? "Unknown",
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
-                Text(
-                  chat['date']!,
-                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                ),
-              ],
-            ),
-            subtitle: Padding(
-              padding: const EdgeInsets.only(top: 4.0),
-              child: Text(chat['message']!, overflow: TextOverflow.ellipsis),
-            ),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ChatPage(name: chat['name']!, image: chat['image']!),
-                ),
+                subtitle: const Text("Tap to chat"),
+                onTap: () {
+                  final room = generateRoomId(currentUserUid, u['uid']);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ChatPage(
+                        name: u['name'] ?? "Unknown",
+                        room: room,
+                        socketService: socketService,
+                        currentUserUid: currentUserUid,
+                      ),
+                    ),
+                  );
+                },
               );
             },
           );
@@ -99,13 +133,29 @@ class MainLayout extends StatelessWidget {
       ),
     );
   }
+
+  String generateRoomId(String uid1, String uid2) {
+    final ids = [uid1, uid2]..sort();
+    return "${ids[0]}_${ids[1]}";
+  }
 }
 
-// CHAT PAGE WITH ROOM MANAGEMENT
+/// ============================
+/// CHAT PAGE
+/// ============================
 class ChatPage extends StatefulWidget {
   final String name;
-  final String image;
-  const ChatPage({super.key, required this.name, required this.image});
+  final String room;
+  final SocketService socketService;
+  final String currentUserUid;
+
+  const ChatPage({
+    super.key,
+    required this.name,
+    required this.room,
+    required this.socketService,
+    required this.currentUserUid,
+  });
 
   @override
   State<ChatPage> createState() => _ChatPageState();
@@ -113,120 +163,70 @@ class ChatPage extends StatefulWidget {
 
 class _ChatPageState extends State<ChatPage> {
   final TextEditingController _controller = TextEditingController();
-  final ScrollController _scrollController = ScrollController();
-  final List<Map<String, String>> messages = [];
-  late IO.Socket socket;
-  late String username;
-  late String currentRoom;
-
-
+  final ScrollController _scroll = ScrollController();
+  final List<Map<String, dynamic>> messages = [];
 
   @override
   void initState() {
     super.initState();
-    username = widget.name;
-    currentRoom = widget.name; // each chat name = a room
 
-    // Connect to Socket.IO server
-    socket = IO.io(
-      'http://localhost:3000',
-      IO.OptionBuilder()
-          .setTransports(['websocket'])
-          .enableAutoConnect()
-          .enableReconnection()
-          .setReconnectionAttempts(5)
-          .setReconnectionDelay(1000)
-          .build(),
-    );
+    // Join room
+    widget.socketService.joinRoom(widget.room);
 
-    socket.onConnect((_) {
-      print('Connected: ${socket.id}');
-      socket.emit('join', currentRoom); // join the room
-    });
-
-    socket.on('receive_message', (data) {
-      setState(() {
-        messages.add({
-          "sender": data['sender'] ?? "Anon",
-          "text": data['text'] ?? "",
+    // Listen to socket messages
+    widget.socketService.socket?.on('receive_message', (data) {
+      if (data['room'] == widget.room) {
+        setState(() {
+          messages.add({
+            "sender": data['sender'],
+            "text": data['text'],
+            "sentAt": data['sentAt'],
+          });
         });
-      });
-
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent + 60,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
+        _scroll.jumpTo(_scroll.position.maxScrollExtent + 60);
+      }
     });
-
-    socket.onDisconnect((_) => print('Disconnected'));
   }
-
-
-  void _scrollToBottom() {
-    _scrollController.animateTo(
-      _scrollController.position.maxScrollExtent + 60,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeOut,
-    );
-  }
-
-  void joinRoom(String room) {
-    if (currentRoom != null) {
-      socket.emit('leave', currentRoom); // leave previous room
-      print('Left room $currentRoom');
-    }
-    socket.emit('join', room);
-    currentRoom = room;
-    print('Joined room $room');
-    messages.clear(); // clear old messages for new chat
-  }
-
-
 
   void sendMessage() {
     final text = _controller.text.trim();
-    if (text.isNotEmpty) {
-      final message = {
-        "sender": username,
-        "text": text,
-        "room": currentRoom, // <-- important
-        "sentAt": DateTime.now().toIso8601String()
-      };
+    if (text.isEmpty) return;
 
-      socket.emit('send_message', message);
+    final msg = {
+      "sender": widget.currentUserUid,
+      "text": text,
+      "room": widget.room,
+      "sentAt": DateTime.now().toIso8601String(),
+    };
 
-      setState(() {
-        messages.add(message);
-      });
+    // Send via Socket
+    widget.socketService.sendMessage(msg, widget.room, widget.currentUserUid);
 
-      _controller.clear();
-    }
+    // Save to Firestore
+    FirebaseFirestore.instance
+        .collection('chats')
+        .doc(widget.room)
+        .collection('messages')
+        .add(msg);
+
+    _controller.clear();
   }
 
-  void switchRoom(String newRoom) {
-    if (currentRoom != newRoom) {
-      socket.emit('leave', currentRoom); // leave old room
-      currentRoom = newRoom;
-      messages.clear(); // clear previous messages
-      socket.emit('join', currentRoom); // join new room
-    }
-  }
   @override
   void dispose() {
-    // Leave the current room before closing socket
-    socket.emit('leave', currentRoom); // make sure currentRoom is the room variable
-    socket.dispose();
-    _controller.dispose();
-    _scrollController.dispose();
+    widget.socketService.leaveRoom(widget.room);
     super.dispose();
   }
 
-
-
-
   @override
   Widget build(BuildContext context) {
+    final msgStream = FirebaseFirestore.instance
+        .collection('chats')
+        .doc(widget.room)
+        .collection('messages')
+        .orderBy('sentAt', descending: false)
+        .snapshots();
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.green[900],
@@ -238,73 +238,52 @@ class _ChatPageState extends State<ChatPage> {
             Text(widget.name),
           ],
         ),
-        actions: const [
-          Icon(Icons.videocam),
-          SizedBox(width: 16),
-          Icon(Icons.call),
-          SizedBox(width: 16),
-          Icon(Icons.more_vert),
-          SizedBox(width: 8),
-        ],
       ),
       body: Column(
         children: [
-          // Messages list
           Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
-              padding: const EdgeInsets.all(10),
-              itemCount: messages.length,
-              itemBuilder: (context, index) {
-                final message = messages[index];
-                final isMe = message['sender'] == username;
-                return Align(
-                  alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(vertical: 4),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: isMe ? Colors.green[100] : Colors.grey[200],
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          message['sender']!,
-                          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey[700], fontSize: 12),
+            child: StreamBuilder<QuerySnapshot>(
+              stream: msgStream,
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) return const SizedBox();
+                final docs = snapshot.data!.docs;
+                messages.clear();
+                messages.addAll(docs.map((doc) => {
+                  "sender": doc['sender'],
+                  "text": doc['text'],
+                  "sentAt": doc['sentAt'],
+                }));
+                return ListView.builder(
+                  controller: _scroll,
+                  padding: const EdgeInsets.all(10),
+                  itemCount: messages.length,
+                  itemBuilder: (context, i) {
+                    final m = messages[i];
+                    final isMe = m['sender'] == widget.currentUserUid;
+                    return Align(
+                      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        margin: const EdgeInsets.only(bottom: 6),
+                        decoration: BoxDecoration(
+                          color: isMe ? Colors.green[100] : Colors.grey[300],
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        const SizedBox(height: 2),
-                        Text(message['text']!),
-                      ],
-                    ),
-                  ),
+                        child: Text(m['text'] ?? ""),
+                      ),
+                    );
+                  },
                 );
               },
             ),
           ),
 
-          // Input row
+          // Input
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
             color: Colors.grey[100],
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
             child: Row(
               children: [
-                IconButton(
-                  icon: const Icon(Icons.emoji_emotions_outlined),
-                  color: Colors.grey[700],
-                  onPressed: () {},
-                ),
-                IconButton(
-                  icon: const Icon(Icons.attach_file),
-                  color: Colors.grey[700],
-                  onPressed: () {},
-                ),
-                IconButton(
-                  icon: const Icon(Icons.camera_alt),
-                  color: Colors.grey[700],
-                  onPressed: () {},
-                ),
                 Expanded(
                   child: TextField(
                     controller: _controller,
@@ -312,7 +291,6 @@ class _ChatPageState extends State<ChatPage> {
                       hintText: 'Type a message',
                       filled: true,
                       fillColor: Colors.white,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(24),
                         borderSide: BorderSide.none,
@@ -325,7 +303,6 @@ class _ChatPageState extends State<ChatPage> {
                   onTap: sendMessage,
                   child: CircleAvatar(
                     backgroundColor: Colors.green[800],
-                    radius: 22,
                     child: const Icon(Icons.send, color: Colors.white),
                   ),
                 ),
@@ -336,5 +313,4 @@ class _ChatPageState extends State<ChatPage> {
       ),
     );
   }
-
 }

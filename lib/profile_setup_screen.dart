@@ -34,9 +34,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               onTap: () async {
                 final picked = await picker.pickImage(source: ImageSource.camera);
                 if (picked != null) {
-                  setState(() {
-                    _image = File(picked.path);
-                  });
+                  setState(() => _image = File(picked.path));
                 }
                 Navigator.pop(context);
               },
@@ -47,9 +45,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               onTap: () async {
                 final picked = await picker.pickImage(source: ImageSource.gallery);
                 if (picked != null) {
-                  setState(() {
-                    _image = File(picked.path);
-                  });
+                  setState(() => _image = File(picked.path));
                 }
                 Navigator.pop(context);
               },
@@ -74,16 +70,12 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       final uid = FirebaseAuth.instance.currentUser!.uid;
       String? imageUrl;
 
-      // 🔥 Upload Image if selected
       if (_image != null) {
-        final storageRef =
-        FirebaseStorage.instance.ref().child("profile_pics/$uid.jpg");
-
+        final storageRef = FirebaseStorage.instance.ref().child("profile_pics/$uid.jpg");
         await storageRef.putFile(_image!);
         imageUrl = await storageRef.getDownloadURL();
       }
 
-      // 🔥 Save Profile to Firestore
       await FirebaseFirestore.instance.collection("users").doc(uid).set({
         "uid": uid,
         "name": _nameController.text.trim(),
@@ -92,7 +84,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         "created_at": FieldValue.serverTimestamp(),
       });
 
-      // 🔥 Navigate to Main Layout
+      // ✅ Fixed: Navigate to MainLayout (imported already)
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const MainLayout()),
@@ -114,26 +106,19 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         backgroundColor: Colors.green[900],
         foregroundColor: Colors.white,
       ),
-
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            // PROFILE PHOTO
             GestureDetector(
               onTap: _pickImage,
               child: CircleAvatar(
                 radius: 65,
                 backgroundImage: _image != null ? FileImage(_image!) : null,
-                child: _image == null
-                    ? const Icon(Icons.camera_alt, size: 45)
-                    : null,
+                child: _image == null ? const Icon(Icons.camera_alt, size: 45) : null,
               ),
             ),
-
             const SizedBox(height: 25),
-
-            // NAME FIELD
             TextField(
               controller: _nameController,
               decoration: InputDecoration(
@@ -143,10 +128,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                 ),
               ),
             ),
-
             const SizedBox(height: 30),
-
-            // SAVE BUTTON
             SizedBox(
               width: double.infinity,
               height: 48,
