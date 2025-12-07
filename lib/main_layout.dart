@@ -1,12 +1,11 @@
+// main_layout.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'profile_screen.dart';
 import 'find_friends_screen.dart';
-import 'services/socket_service.dart';
 import 'phone_login_screen.dart';
-
 
 class MainLayout extends StatefulWidget {
   const MainLayout({super.key});
@@ -16,54 +15,25 @@ class MainLayout extends StatefulWidget {
 }
 
 class _MainLayoutState extends State<MainLayout> {
-  late String currentUserUid;
-  late SocketService socketService;
-  List<String> friends = [];
+  String? currentUserUid;
 
   @override
   void initState() {
     super.initState();
     final user = FirebaseAuth.instance.currentUser;
-
-    if (user != null) {
-      currentUserUid = user.uid;
-
-      socketService = SocketService();
-      socketService.connect(); // optional: keep socket if you want real-time
-      _loadFriends();
-    }
+    currentUserUid = user?.uid;
   }
 
-  void _loadFriends() async {
-    final doc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(currentUserUid)
-        .get();
-
-    friends = List<String>.from(doc['friends'] ?? []);
-    setState(() {});
-  }
-
-  Stream<QuerySnapshot> getFriendsStream() {
-    if (friends.isEmpty) {
-      // Return a query that will never match any documents
-      return FirebaseFirestore.instance
-          .collection('users')
-          .where('uid', isEqualTo: 'null')
-          .snapshots();
-    } else {
-      return FirebaseFirestore.instance
-          .collection('users')
-          .where('uid', whereIn: friends)
-          .snapshots();
-    }
+  String generateRoomId(String uid1, String uid2) {
+    final ids = [uid1, uid2]..sort();
+    return '${ids[0]}_${ids[1]}';
   }
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-
-    if (user == null) {
+    // If not logged in, redirect to login screen
+    if (currentUserUid == null) {
+      // use microtask to avoid calling navigator during build sync
       Future.microtask(() {
         Navigator.pushReplacement(
           context,
@@ -72,6 +42,11 @@ class _MainLayoutState extends State<MainLayout> {
       });
       return const SizedBox.shrink();
     }
+
+    final userDocStream = FirebaseFirestore.instance
+        .collection('users')
+        .doc(currentUserUid)
+        .snapshots();
 
     return Scaffold(
       appBar: AppBar(
@@ -105,47 +80,100 @@ class _MainLayoutState extends State<MainLayout> {
         ],
       ),
 
-      body: StreamBuilder<QuerySnapshot>(
-        stream: getFriendsStream(),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
+      // Body: stream current user doc to get friends list in real-time
+      body: StreamBuilder<DocumentSnapshot>(
+        stream: userDocStream,
+        builder: (context, userSnap) {
+          if (userSnap.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-
-          final users = snapshot.data!.docs;
-
-          if (users.isEmpty) {
-            return const Center(child: Text("No friends yet"));
+          if (!userSnap.hasData || userSnap.data == null) {
+            return const Center(child: Text("User data not found."));
           }
 
-          return ListView.separated(
-            itemCount: users.length,
-            separatorBuilder: (_, __) => const Divider(indent: 72),
-            itemBuilder: (context, index) {
-              final u = users[index];
+          final data = userSnap.data!.data() as Map<String, dynamic>?;
 
-              return ListTile(
-                leading: const CircleAvatar(radius: 25, child: Icon(Icons.person)),
-                title: Text(
-                  u['name'] ?? "Unknown",
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-                subtitle: const Text("Tap to chat"),
+          if (data == null) {
+            return const Center(child: Text("User data unavailable."));
+          }
 
-                onTap: () {
-                  final room = generateRoomId(currentUserUid, u['uid']);
+          final List<dynamic> friendsDynamic = data['friends'] ?? [];
+          final List<String> friends = friendsDynamic.map((e) => e.toString()).toList();
 
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => ChatPage(
-                        name: u['name'] ?? "Unknown",
-                        room: room,
-                        socketService: socketService,
-                        currentUserUid: currentUserUid,
-                      ),
+          // If there are no friends, show message and button to Find Friends
+          if (friends.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text("No friends yet. Find and add friends to start chatting."),
+                  const SizedBox(height: 12),
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.person_add),
+                    label: const Text("Find Friends"),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const FindFriendsScreen()),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            );
+          }
+
+
+          final friendsStream = FirebaseFirestore.instance
+              .collection('users')
+              .where('uid', whereIn: friends)
+              .snapshots();
+
+          return StreamBuilder<QuerySnapshot>(
+            stream: friendsStream,
+            builder: (context, friendsSnap) {
+              if (friendsSnap.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (!friendsSnap.hasData) {
+                return const Center(child: Text("No friends found."));
+              }
+
+              final docs = friendsSnap.data!.docs;
+              if (docs.isEmpty) {
+                return const Center(child: Text("No friends found."));
+              }
+
+              return ListView.separated(
+                itemCount: docs.length,
+                separatorBuilder: (_, __) => const Divider(indent: 72),
+                itemBuilder: (context, index) {
+                  final u = docs[index].data() as Map<String, dynamic>;
+                  final friendName = (u['name'] ?? 'Unknown') as String;
+                  final friendUid = (u['uid'] ?? docs[index].id) as String;
+
+                  return ListTile(
+                    leading: CircleAvatar(
+                      radius: 22,
+                      backgroundImage: u['photo'] != null ? NetworkImage(u['photo']) : null,
+                      child: u['photo'] == null ? Text(friendName.isNotEmpty ? friendName[0] : '?') : null,
                     ),
+                    title: Text(friendName, overflow: TextOverflow.ellipsis),
+                    subtitle: const Text("Tap to chat"),
+                    onTap: () {
+                      final roomId = generateRoomId(currentUserUid!, friendUid);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ChatPage(
+                            name: friendName,
+                            friendUid: friendUid,
+                            room: roomId,
+                            currentUserUid: currentUserUid!,
+                          ),
+                        ),
+                      );
+                    },
                   );
                 },
               );
@@ -153,42 +181,24 @@ class _MainLayoutState extends State<MainLayout> {
           );
         },
       ),
-
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 0,
-        selectedItemColor: Colors.green[800],
-        unselectedItemColor: Colors.grey[600],
-        type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline), label: 'Chats'),
-          BottomNavigationBarItem(icon: Icon(Icons.group_outlined), label: 'Groups'),
-          BottomNavigationBarItem(icon: Icon(Icons.update), label: 'Status'),
-          BottomNavigationBarItem(icon: Icon(Icons.settings_outlined), label: 'Settings'),
-        ],
-      ),
     );
-  }
-
-  String generateRoomId(String uid1, String uid2) {
-    final ids = [uid1, uid2]..sort();
-    return "${ids[0]}_${ids[1]}";
   }
 }
 
 
-// CHAT PAGE
+/// ChatPage
 
 class ChatPage extends StatefulWidget {
   final String name;
+  final String friendUid;
   final String room;
-  final SocketService socketService;
   final String currentUserUid;
 
   const ChatPage({
     super.key,
     required this.name,
+    required this.friendUid,
     required this.room,
-    required this.socketService,
     required this.currentUserUid,
   });
 
@@ -200,46 +210,47 @@ class _ChatPageState extends State<ChatPage> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scroll = ScrollController();
 
-  @override
-  void initState() {
-    super.initState();
-
-    widget.socketService.joinRoom(widget.room);
-
-    widget.socketService.socket?.on('receive_message', (data) {
-      if (data['room'] == widget.room) {
-        setState(() {});
-        _scroll.jumpTo(_scroll.position.maxScrollExtent + 80);
-      }
-    });
-  }
-
-  void sendMessage() {
+  Future<void> sendMessage() async {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
 
+    // message payload
     final msg = {
       "sender": widget.currentUserUid,
       "text": text,
-      "room": widget.room,
-      "sentAt": DateTime.now().toIso8601String(),
+      "sentAt": FieldValue.serverTimestamp(),
     };
 
-    widget.socketService.sendMessage(msg, widget.room, widget.currentUserUid);
+    final chatRef = FirebaseFirestore.instance.collection('chats').doc(widget.room);
 
-    FirebaseFirestore.instance
-        .collection('chats')
-        .doc(widget.room)
-        .collection('messages')
-        .add(msg);
+    try {
+      // Add the message (this will create the chats/{room} doc + messages subcollection automatically)
+      await chatRef.collection('messages').add(msg);
+
+      // Update room metadata (members should be UIDs)
+      await chatRef.set({
+        "members": [widget.currentUserUid, widget.friendUid],
+        "lastMessage": text,
+        "updatedAt": FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      // show minimal error to user
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Send failed: $e")));
+      return;
+    }
 
     _controller.clear();
-  }
 
-  @override
-  void dispose() {
-    widget.socketService.leaveRoom(widget.room);
-    super.dispose();
+    // scroll to bottom after small delay so new message appears
+    Future.delayed(const Duration(milliseconds: 200), () {
+      if (_scroll.hasClients) {
+        _scroll.animateTo(
+          _scroll.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
 
   @override
@@ -254,44 +265,51 @@ class _ChatPageState extends State<ChatPage> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.green[900],
-        foregroundColor: Colors.white,
         title: Row(
           children: [
-            const CircleAvatar(child: Icon(Icons.person)),
+            CircleAvatar(
+              child: Text(widget.name.isNotEmpty ? widget.name[0] : '?'),
+            ),
             const SizedBox(width: 10),
-            Text(widget.name),
+            Expanded(child: Text(widget.name)),
           ],
         ),
       ),
-
       body: Column(
         children: [
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: msgStream,
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) return const SizedBox();
-
-                final docs = snapshot.data!.docs;
+              builder: (context, snap) {
+                if (snap.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (!snap.hasData || snap.data == null) {
+                  return const SizedBox();
+                }
+                final docs = snap.data!.docs;
 
                 return ListView.builder(
                   controller: _scroll,
                   padding: const EdgeInsets.all(12),
                   itemCount: docs.length,
                   itemBuilder: (context, i) {
-                    final m = docs[i];
-                    final isMe = m['sender'] == widget.currentUserUid;
+                    final m = docs[i].data() as Map<String, dynamic>;
+                    final sender = m['sender'] ?? '';
+                    final text = m['text'] ?? '';
+                    final isMe = sender == widget.currentUserUid;
 
                     return Align(
                       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
                       child: Container(
                         padding: const EdgeInsets.all(12),
                         margin: const EdgeInsets.only(bottom: 8),
+                        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
                         decoration: BoxDecoration(
                           color: isMe ? Colors.green[100] : Colors.grey[300],
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Text(m['text']),
+                        child: Text(text),
                       ),
                     );
                   },
@@ -300,34 +318,39 @@ class _ChatPageState extends State<ChatPage> {
             ),
           ),
 
-          Container(
-            color: Colors.grey[100],
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    decoration: InputDecoration(
-                      hintText: 'Type a message',
-                      filled: true,
-                      fillColor: Colors.white,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
-                        borderSide: BorderSide.none,
+          // input area
+          SafeArea(
+            child: Container(
+              color: Colors.grey[100],
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _controller,
+                      textCapitalization: TextCapitalization.sentences,
+                      decoration: const InputDecoration(
+                        hintText: 'Type a message',
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.all(Radius.circular(24)),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 6),
-                GestureDetector(
-                  onTap: sendMessage,
-                  child: CircleAvatar(
+                  const SizedBox(width: 8),
+                  CircleAvatar(
                     backgroundColor: Colors.green[800],
-                    child: const Icon(Icons.send, color: Colors.white),
+                    child: IconButton(
+                      icon: const Icon(Icons.send, color: Colors.white),
+                      onPressed: sendMessage,
+                    ),
                   ),
-                )
-              ],
+                ],
+              ),
             ),
           ),
         ],
