@@ -32,7 +32,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               leading: const Icon(Icons.camera_alt),
               title: const Text("Camera"),
               onTap: () async {
-                final picked = await picker.pickImage(source: ImageSource.camera);
+                final picked =
+                await picker.pickImage(source: ImageSource.camera);
                 if (picked != null) {
                   setState(() => _image = File(picked.path));
                 }
@@ -43,7 +44,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               leading: const Icon(Icons.photo),
               title: const Text("Gallery"),
               onTap: () async {
-                final picked = await picker.pickImage(source: ImageSource.gallery);
+                final picked =
+                await picker.pickImage(source: ImageSource.gallery);
                 if (picked != null) {
                   setState(() => _image = File(picked.path));
                 }
@@ -70,21 +72,32 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       final uid = FirebaseAuth.instance.currentUser!.uid;
       String? imageUrl;
 
+      // Upload Profile Image
       if (_image != null) {
-        final storageRef = FirebaseStorage.instance.ref().child("profile_pics/$uid.jpg");
+        final storageRef =
+        FirebaseStorage.instance.ref().child("profile_pics/$uid.jpg");
         await storageRef.putFile(_image!);
         imageUrl = await storageRef.getDownloadURL();
       }
 
-      await FirebaseFirestore.instance.collection("users").doc(uid).set({
+      // Create user in Firestore
+      final userRef =
+      FirebaseFirestore.instance.collection("users").doc(uid);
+
+      await userRef.set({
         "uid": uid,
         "name": _nameController.text.trim(),
         "phone": widget.phone,
         "photo": imageUrl,
         "created_at": FieldValue.serverTimestamp(),
-      });
 
-      // ✅ Fixed: Navigate to MainLayout (imported already)
+
+        "friends": [],
+        "sentRequests": [],
+        "receivedRequests": [],
+      }, SetOptions(merge: true));
+
+      // Go to Main Home Page
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const MainLayout()),
@@ -114,8 +127,11 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               onTap: _pickImage,
               child: CircleAvatar(
                 radius: 65,
-                backgroundImage: _image != null ? FileImage(_image!) : null,
-                child: _image == null ? const Icon(Icons.camera_alt, size: 45) : null,
+                backgroundImage:
+                _image != null ? FileImage(_image!) : null,
+                child: _image == null
+                    ? const Icon(Icons.camera_alt, size: 45)
+                    : null,
               ),
             ),
             const SizedBox(height: 25),
